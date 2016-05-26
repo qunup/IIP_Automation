@@ -28,7 +28,7 @@ def import_data():
     if any(df_input.duplicated('DataType')) or any(df_input.DataType.isnull()):
         wb.macro('ShowMsg')("DataType column has duplicates and/or empty cell" +
                             "\n" + "Please fix it and rerun the macro")
-        return
+        return 0
     # import_data
     # exception for inbound freight
     dict_df = {}
@@ -42,3 +42,55 @@ def import_data():
         else:
             dict_df[row['DataType']] = read_html(
                 row['FilePath'], header=0)[0].fillna("")
+    return dict_df
+
+
+def master_shop():
+    dict_df = import_data()
+    wb = xw.Workbook.caller()
+    if dict_df == 0:
+        # wb.macro('ShowMsg')("Data Import Failed")
+        return 0
+    l_output = [l for l in xw.Range(
+        'Macro', 'OutputField').value if l[0] != None]
+    df_output = DataFrame(
+        l_output, columns=['FilePath', 'FileName', 'DataType', 'Status'])
+    dict_ms = {"BOM": ms_BOM(),
+               "COOP": ms_COOP(),
+               "Future Sample Receipts": ms_Sample(),
+               "Gross Cost Margin": ms_Margin(),
+               "Inbound Freight": ms_Freight(),
+               "Receipts": ms_Receipts(),
+               "Sales, Discounts, Points": ms_Sales()}
+    for index, row in df_output.iterrows():
+        try:
+            row['Status'] = dict_ms[row['DataType']]
+        except:
+            row['Status'] = "Fail"
+    wb.active()
+    xw.Range('Macro', 'C_Status').options(transpose=True).value = df_output['Status'].tolist()
+    wb.macro('ShowMsg')("Done!")
+
+
+# separate routines to process each master file
+
+def ms_BOM():
+    return "Fail"
+
+def ms_COOP():
+    return "Fail"
+
+def ms_Sample():
+    return "Fail"
+
+def ms_Margin():
+    return "Fail"
+
+def ms_Freight():
+    return "Fail"
+
+def ms_Receipts():
+    return "Fail"
+
+def ms_Sales():
+    return "Fail"
