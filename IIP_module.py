@@ -46,6 +46,8 @@ def import_data():
 
 
 def master_shop():
+    global dict_df
+    global wb
     dict_df = import_data()
     wb = xw.Workbook.caller()
     if dict_df == 0:
@@ -55,16 +57,16 @@ def master_shop():
         'Macro', 'OutputField').value if l[0] != None]
     df_output = DataFrame(
         l_output, columns=['FilePath', 'FileName', 'DataType', 'Status'])
-    dict_ms = {"BOM": ms_BOM(),
-               "COOP": ms_COOP(),
-               "Future Sample Receipts": ms_Sample(),
-               "Gross Cost Margin": ms_Margin(),
-               "Inbound Freight": ms_Freight(),
-               "Receipts": ms_Receipts(),
-               "Sales, Discounts, Points": ms_Sales()}
+    dict_ms = {"BOM": ms_BOM,
+               "COOP": ms_COOP,
+               "Future Sample Receipts": ms_Sample,
+               "Gross Cost Margin": ms_Margin,
+               "Inbound Freight": ms_Freight,
+               "Receipts": ms_Receipts,
+               "Sales, Discounts, Points": ms_Sales}
     for index, row in df_output.iterrows():
         try:
-            row['Status'] = dict_ms[row['DataType']]
+            row['Status'] = dict_ms[row['DataType']](row)
         except:
             row['Status'] = "Fail"
     wb.active()
@@ -74,23 +76,45 @@ def master_shop():
 
 # separate routines to process each master file
 
-def ms_BOM():
+def ms_BOM(row):
     return "Fail"
 
-def ms_COOP():
+def ms_COOP(row):
     return "Fail"
 
-def ms_Sample():
+def ms_Sample(row):
     return "Fail"
 
-def ms_Margin():
+def ms_Margin(row):
     return "Fail"
 
-def ms_Freight():
+def ms_Freight(row):
     return "Fail"
 
-def ms_Receipts():
+def ms_Receipts(row):
     return "Fail"
 
-def ms_Sales():
-    return "Fail"
+def ms_Sales(row):
+    wb_output = xw.Workbook(row['FilePath'])
+    
+    # tab PIM Vendor
+    xw.Range('PIM Vendor','A1').table.clear_contents()
+    xw.Range('PIM Vendor','A1').value = dict_df['PIM Vendors'].columns.tolist()
+    xw.Range('PIM Vendor','A2').value = dict_df['PIM Vendors'].values
+    
+    # tab Looker Pull
+    xw.Range('Looker Pull','D2:L2').vertical.clear_contents()
+    xw.Range('Looker Pull','D2').value = dict_df['Sales, Discounts, Points'].values
+    n_row = xw.Range('Looker Pull','D2').vertical.last_cell.row
+    xw.Range('Looker Pull','D' + str(n_row + 1)).vertical.clear_contents()
+    xw.Range('Looker Pull','A3:C3').vertical.clear_contents()
+    f_copy_formula = wb.macro('Copy_Formula')
+    f_copy_formula('Looker Pull','A2:C2','A2:C'+ str(n_row))
+    xw.Range('Looker Pull','M3:O3').vertical.clear_contents()
+    f_copy_formula('Looker Pull','M2:O2','M2:O'+ str(n_row))
+    xw.Range('Looker Pull',str(n_row + 1)+":"+str(n_row + 1)).clear_contents()
+    
+    # save
+    wb_output.save()
+    wb_output.close()
+    return "Success"
