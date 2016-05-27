@@ -1,9 +1,9 @@
 from pandas import *
 import glob
 # import os
-
 import numpy as np
 import xlwings as xw
+import math
 # from xlwings import Workbook, Range
 
 
@@ -44,6 +44,76 @@ def import_data():
                 row['FilePath'], header=0)[0].fillna("")
     return dict_df
 
+# write data in chunks to get around xlwings' size limit
+
+def write_in_chunks(wb, sheet_name, c_start, df_data, chunk_size=5000):
+    n_lim = df_data.shape[0]
+    n_chunk = int(math.ceil(n_lim*1.0/chunk_size))
+    wb.active()
+    for i in range(n_chunk):
+        xw.Range(sheet_name,c_start).value = df_data[i*chunk_size:min((i+1)*chunk_size,n_lim),:]
+        c_start = xw.Range(sheet_name,c_start).vertical.last_cell.offset(1).get_address()
+
+
+# auto adjust pivot table data rannge and refresh
+
+def update_pivot():
+    return "HOOOOORAY"
+
+# separate routines to process each master file
+
+def ms_BOM(row):
+    return "Fail"
+
+def ms_COOP(row):
+    return "Fail"
+
+def ms_Sample(row):
+    return "Fail"
+
+def ms_Margin(row):
+    return "Fail"
+
+def ms_Freight(row):
+    return "Fail"
+
+def ms_Receipts(row):
+    return "Fail"
+
+def ms_Sales(row):
+    wb_output = xw.Workbook(row['FilePath'])
+    f_copy_formula = wb.macro('Copy_Formula')
+
+    # tab PIM Vendor
+    xw.Range('PIM Vendor','A1').table.clear_contents()
+    xw.Range('PIM Vendor','A1').value = dict_df['PIM Vendors'].columns.tolist()
+    xw.Range('PIM Vendor','A2').value = dict_df['PIM Vendors'].values
+
+    # tab PIM Product
+    xw.Range('PIM Product','B1').table.clear_contents()
+    xw.Range('PIM Product','B1').value = dict_df['PIM Products'].columns.tolist()
+    #xw.Range('PIM Product','B2').value = dict_df['PIM Products'].values
+    write_in_chunks(wb_output, 'PIM Product','B2',dict_df['PIM Products'].values)
+    n_row = xw.Range('PIM Product','B2').vertical.last_cell.row
+    xw.Range('PIM Product','A3').vertical.clear_contents()
+    f_copy_formula('PIM Product','A2','A2:A'+ str(n_row))
+    
+    # tab Looker Pull
+    xw.Range('Looker Pull','D2:L2').vertical.clear_contents()
+    xw.Range('Looker Pull','D2').value = dict_df['Sales, Discounts, Points'].values
+    n_row = xw.Range('Looker Pull','D2').vertical.last_cell.row
+    #xw.Range('Looker Pull','D' + str(n_row + 1)).vertical.clear_contents()
+    xw.Range('Looker Pull','A3:C3').vertical.clear_contents()
+    f_copy_formula('Looker Pull','A2:C2','A2:C'+ str(n_row))
+    xw.Range('Looker Pull','M3:O3').vertical.clear_contents()
+    f_copy_formula('Looker Pull','M2:O2','M2:O'+ str(n_row))
+    xw.Range('Looker Pull',str(n_row + 1)+":"+str(n_row + 1)).clear_contents()
+
+    # save
+    wb_output.save()
+    wb_output.close()
+    return "Success"
+
 
 def master_shop():
     global dict_df
@@ -72,49 +142,3 @@ def master_shop():
     wb.active()
     xw.Range('Macro', 'C_Status').options(transpose=True).value = df_output['Status'].tolist()
     wb.macro('ShowMsg')("Done!")
-
-
-# separate routines to process each master file
-
-def ms_BOM(row):
-    return "Fail"
-
-def ms_COOP(row):
-    return "Fail"
-
-def ms_Sample(row):
-    return "Fail"
-
-def ms_Margin(row):
-    return "Fail"
-
-def ms_Freight(row):
-    return "Fail"
-
-def ms_Receipts(row):
-    return "Fail"
-
-def ms_Sales(row):
-    wb_output = xw.Workbook(row['FilePath'])
-    
-    # tab PIM Vendor
-    xw.Range('PIM Vendor','A1').table.clear_contents()
-    xw.Range('PIM Vendor','A1').value = dict_df['PIM Vendors'].columns.tolist()
-    xw.Range('PIM Vendor','A2').value = dict_df['PIM Vendors'].values
-    
-    # tab Looker Pull
-    xw.Range('Looker Pull','D2:L2').vertical.clear_contents()
-    xw.Range('Looker Pull','D2').value = dict_df['Sales, Discounts, Points'].values
-    n_row = xw.Range('Looker Pull','D2').vertical.last_cell.row
-    xw.Range('Looker Pull','D' + str(n_row + 1)).vertical.clear_contents()
-    xw.Range('Looker Pull','A3:C3').vertical.clear_contents()
-    f_copy_formula = wb.macro('Copy_Formula')
-    f_copy_formula('Looker Pull','A2:C2','A2:C'+ str(n_row))
-    xw.Range('Looker Pull','M3:O3').vertical.clear_contents()
-    f_copy_formula('Looker Pull','M2:O2','M2:O'+ str(n_row))
-    xw.Range('Looker Pull',str(n_row + 1)+":"+str(n_row + 1)).clear_contents()
-    
-    # save
-    wb_output.save()
-    wb_output.close()
-    return "Success"
